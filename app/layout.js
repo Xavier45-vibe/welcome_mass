@@ -2,8 +2,8 @@ import "./globals.css";
 import "./ui.css";
 
 export const metadata = {
-  title: "Welcome Mass — Secure access",
-  description: "Sign in to your Welcome Mass workspace.",
+  title: "Xavier Shelter Hub — Secure access",
+  description: "Sign in to your Xavier Shelter Hub workspace.",
 };
 
 export default function RootLayout({ children }) {

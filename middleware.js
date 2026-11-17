@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const key = () =>
-  new TextEncoder().encode(
-    process.env.AUTH_SECRET || "dev-only-insecure-secret-change-me"
-  );
+const key = () => {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_SECRET must be configured in production.");
+  }
+  return new TextEncoder().encode(secret || "dev-only-insecure-secret-change-me");
+};
 
 const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
 

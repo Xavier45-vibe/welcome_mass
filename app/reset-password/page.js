@@ -3,7 +3,7 @@ import { AuthShell } from "@/components/Shell";
 import { ResetForm } from "@/components/Forms";
 import { findUserByResetToken } from "@/lib/db";
 
-export const metadata = { title: "Reset password — Welcome Mass" };
+export const metadata = { title: "Reset password — Xavier Shelter Hub" };
 export const dynamic = "force-dynamic";
 
 export default async function Page({ searchParams }) {

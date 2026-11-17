@@ -14,6 +14,7 @@ import {
 import { createSession, destroySession } from "@/lib/session";
 import { rateLimit } from "@/lib/ratelimit";
 import { EMAIL_RE, normalizeEmail, passwordIssues } from "@/lib/validation";
+import { getAppOrigin, getMailConfig, sendPasswordResetEmail } from "@/lib/mailer";
 
 async function ip() {
   const h = await headers();
@@ -77,6 +78,19 @@ export async function forgotPassword(_prev, formData) {
   if (!rl.ok) return { error: `Too many attempts. Try again in ${rl.retryAfter}s.`, values };
   if (!EMAIL_RE.test(email)) return { error: "Enter a valid email address.", values };
 
+  let mailConfig;
+  let appOrigin;
+  try {
+    mailConfig = getMailConfig();
+    appOrigin = getAppOrigin();
+  } catch (error) {
+    console.error("[password-reset] configuration error:", error.message);
+    return { error: "Password reset is temporarily unavailable. Please try again later.", values };
+  }
+  if (!mailConfig && process.env.NODE_ENV === "production") {
+    return { error: "Password reset email is not configured. Please contact the site administrator.", values };
+  }
+
   const user = findUserByEmail(email);
   let devLink = null;
   if (user) {
@@ -85,13 +99,25 @@ export async function forgotPassword(_prev, formData) {
       resetTokenHash: hashToken(token),
       resetExpires: Date.now() + 30 * 60_000,
     });
-    const link = `/reset-password?token=${token}`;
-    // No mail provider configured: log the link. Replace with an email send in production.
-    console.log(`[password-reset] ${email} -> ${link}`);
-    if (process.env.NODE_ENV !== "production") devLink = link;
+    const resetUrl = new URL("/reset-password", appOrigin);
+    resetUrl.searchParams.set("token", token);
+
+    if (mailConfig) {
+      try {
+        await sendPasswordResetEmail({ to: email, link: resetUrl.toString() }, mailConfig);
+      } catch (error) {
+        updateUser(user.id, { resetTokenHash: null, resetExpires: 0 });
+        console.error("[password-reset] email delivery failed:", {
+          code: error?.code,
+          responseCode: error?.responseCode,
+        });
+        return { error: "We couldn't send a reset email right now. Please try again later.", values };
+      }
+    } else {
+      devLink = `${resetUrl.pathname}${resetUrl.search}`;
+    }
   }
-  // Same response whether or not the account exists.
-  return { sent: true, devLink, values };
+  return { sent: true, devLink, localOnly: !mailConfig, values };
 }
 
 export async function resetPassword(_prev, formData) {

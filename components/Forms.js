@@ -49,7 +49,9 @@ export function ForgotForm() {
     return (
       <div>
         <div className="success" role="status">
-          If an account exists for <b>{s.values.email}</b>, a reset link is on its way. It expires in 30 minutes.
+          {s.localOnly
+            ? <>Local demo mode: no email is sent. If an account exists for <b>{s.values.email}</b>, its reset link appears here.</>
+            : <>If an account exists for <b>{s.values.email}</b>, reset instructions will be emailed. The link expires in 30 minutes.</>}
         </div>
         {s.devLink && (
           <div className="devbox">

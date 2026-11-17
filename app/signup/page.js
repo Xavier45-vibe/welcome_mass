@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AuthShell } from "@/components/Shell";
 import { SignupForm } from "@/components/Forms";
 
-export const metadata = { title: "Create account — Welcome Mass" };
+export const metadata = { title: "Create account — Xavier Shelter Hub" };
 
 export default function Page() {
   return (
