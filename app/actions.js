@@ -41,11 +41,13 @@ export async function signup(_prev, formData) {
   if (password !== confirm) fieldErrors.confirm = "Passwords do not match.";
   if (Object.keys(fieldErrors).length) return { fieldErrors, values };
 
-  if (findUserByEmail(email))
+  if (await findUserByEmail(email))
     return { fieldErrors: { email: "An account with this email already exists." }, values };
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = createUser({ name, email, passwordHash });
+  const user = await createUser({ name, email, passwordHash });
+  if (!user)
+    return { fieldErrors: { email: "An account with this email already exists." }, values };
   await createSession(user);
   redirect("/dashboard");
 }
@@ -61,7 +63,7 @@ export async function login(_prev, formData) {
   if (!EMAIL_RE.test(email) || !password)
     return { error: "Enter your email and password.", values };
 
-  const user = findUserByEmail(email);
+  const user = await findUserByEmail(email);
   // Always run bcrypt to keep timing uniform (prevents user enumeration).
   const ok = await bcrypt.compare(password, user?.passwordHash || DUMMY_HASH);
   if (!user || !ok) return { error: "Incorrect email or password.", values };
@@ -91,11 +93,11 @@ export async function forgotPassword(_prev, formData) {
     return { error: "Password reset email is not configured. Please contact the site administrator.", values };
   }
 
-  const user = findUserByEmail(email);
+  const user = await findUserByEmail(email);
   let devLink = null;
   if (user) {
     const token = crypto.randomBytes(32).toString("hex");
-    updateUser(user.id, {
+    await updateUser(user.id, {
       resetTokenHash: hashToken(token),
       resetExpires: Date.now() + 30 * 60_000,
     });
@@ -106,7 +108,7 @@ export async function forgotPassword(_prev, formData) {
       try {
         await sendPasswordResetEmail({ to: email, link: resetUrl.toString() }, mailConfig);
       } catch (error) {
-        updateUser(user.id, { resetTokenHash: null, resetExpires: 0 });
+        await updateUser(user.id, { resetTokenHash: null, resetExpires: 0 });
         console.error("[password-reset] email delivery failed:", {
           code: error?.code,
           responseCode: error?.responseCode,
@@ -132,10 +134,10 @@ export async function resetPassword(_prev, formData) {
   if (issues.length) return { fieldErrors: { password: `Password needs ${issues.join(", ")}.` } };
   if (password !== confirm) return { fieldErrors: { confirm: "Passwords do not match." } };
 
-  const user = token ? findUserByResetToken(token) : null;
+  const user = token ? await findUserByResetToken(token) : null;
   if (!user) return { error: "This reset link is invalid or has expired. Request a new one." };
 
-  updateUser(user.id, {
+  await updateUser(user.id, {
     passwordHash: await bcrypt.hash(password, 12),
     resetTokenHash: null,
     resetExpires: 0,

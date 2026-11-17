@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Page({ searchParams }) {
   const { token } = await searchParams;
-  const valid = token && findUserByResetToken(token);
+  const valid = token && (await findUserByResetToken(token));
 
   if (!valid)
     return (
